@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 from unittest import TestCase, main #, skip
 
-from parser import parse_data
+from image_parser import parse_data
 from dataio.wav import read_from_wav
 from dataio.png import read_from_png
 
