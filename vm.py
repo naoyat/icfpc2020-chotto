@@ -89,6 +89,10 @@ class VM :
         self.reg[reg] = val
         return val  # just for debug
 
+    def define(self, reg, uneval):
+        self.reg[reg] = ('thunk', uneval)
+        return uneval  # just for debug
+
     # b, c, s が未実装
     def apply(self, op, arg, verbose=False):
         if isinstance(op, str):
@@ -206,16 +210,28 @@ class VM :
         if ix == len(tokens):
             return (None, ix)
 
-        if is_reg(tokens[ix]):
-            reg = tokens[ix]
+        head = tokens[ix]
+        if is_reg(head):
+            reg = head
             # reg_id = tokens[ix][1]
             if len(tokens)-ix >= 3 and tokens[ix+1] == '=':
                 # let reg = evaluated rest
-                val, next = self.eval(tokens, ix+2, verbose=verbose)
-                return (self.bind(reg, val), next)
+                # val, next = self.eval(tokens, ix+2, verbose=verbose)
+                # return (self.bind(reg, val), next)
+                self.define(reg, tokens[ix+2:])
+                return ('def<%s>' % reg, len(tokens))
             else:
-                return (self.reg.get(reg, 'undef<%s>' % reg), ix+1)
-        elif tokens[ix] == 'ap':
+                val = self.reg.get(reg, 'undef<%s>' % reg)
+                if verbose: print('  reg<%s> =' % reg, val)
+                if isinstance(val, tuple) and val[0] == 'thunk':
+                    # if verbose:
+                    # if verbose: print('  evaluate thunk<%s>=%s' % (reg, val[1]))
+                    print('[EVAL %s]' % reg)
+                    self.reg[reg] = 'rec<%s>' % reg
+                    val, _ = self.eval(val[1], 0, verbose=verbose)
+                    self.reg[reg] = val
+                return (val, ix+1)
+        elif head == 'ap':
             if verbose: print('  ap at ix=%d ...' % (ix,))# tokens[ix+1:]))
             op, next = self.eval(tokens, ix+1, verbose=verbose)
             if verbose: print('    op=%s; next=%d ...' % (op, next))#, tokens[next:]))
@@ -225,7 +241,7 @@ class VM :
             if verbose: print('    apply %s %s -> val=%s' % (op, arg, val))
             return (val, next)
         else:
-            return (tokens[ix], ix+1)
+            return (head, ix+1)
 
     def run(self, verbose=False):
         for line_no, line in enumerate(self.code, start=1):
@@ -252,7 +268,7 @@ class VM :
 @click.option('-s', '--src', type=click.Path(), default='galaxy.txt')
 @click.option('-e', '--eval', type=str, required=False)
 def main(src, eval):
-    sys.setrecursionlimit(10000)
+    sys.setrecursionlimit(20000)
 
     vm = VM()
     if eval:
@@ -262,6 +278,8 @@ def main(src, eval):
     else:
         vm.load(src)
         vm.run()
+        v, _ = vm.eval([':galaxy'])
+        print('galaxy =', v)
 
 
 if __name__ == '__main__':
