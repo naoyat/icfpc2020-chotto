@@ -47,31 +47,139 @@ class ConsCell :
         return '(' + self.repr_sub() + ')'
 
 
-def tokenize(line):
-    tokens = []
-    for token in line.split(' '):
-        t = token[0]
-        try:
-            # if t == 't':
-            #     token = True
-            # elif t == 'f':
-            #     token = False
-            if t == ':' or t == 'x':
-                token = ':' + token[1:]
-                # token = ('x', int(token[1:]))
-            elif t == '-' or t in '0123456789':
-                token = int(token)
-            elif t == 'g' and token == 'galaxy':
-                token = ':galaxy'
-            else:
-                pass
-        except Exception:
+FnInc = lambda x: x+1  #5. Successor
+FnDec = lambda x: x-1  #6. Predecessor
+
+#def FnSum2(x):
+#    return lambda y: x+y
+
+FnAdd = lambda x: lambda y:x+y  #7. Sum
+
+FnMul = lambda x: lambda y:x*y  #9. Product
+
+def intdiv(x, y):
+    sgn = 1
+    if x < 0:
+        sgn = -sgn
+        x = -x
+    if y < 0:
+        sgn = -sgn
+        y = -y
+    return (x // y) * sgn
+
+FnDiv = lambda x: sys.stdout.write('[DIV1]') and (lambda y: sys.stdout.write('[DIV]') and intdiv(x,y))  #10. Integer Division
+
+FnTrue = lambda x: lambda y: x  #21. True (K Combinator)
+FnFalse = lambda x: lambda y: y  #22 False
+
+FnEq = lambda x: lambda y:FnTrue if x==y else FnFalse  #11. Equality and Booleans
+FnLt = lambda x: lambda y:FnTrue if x<y else FnFalse  #12. Strict Less-Than
+FnMod = lambda x: [x]  #13. Modulate
+FnDem = lambda x: x[0]  #14. Demodulate
+
+#15
+
+FnNeg = lambda x: -x  #16. Negate
+
+FnAp = lambda f: lambda a: f(a)  #17. Function Application
+
+FnSCombinator = lambda x: lambda y: lambda z: x(z)(y(z))  #18. S Combinator
+FnCCombinator = lambda x: lambda y: lambda z: x(z)(y)  #19. C Combinator
+FnBCombinator = lambda x: lambda y: lambda z: x(y(z))  #20. B Combinator
+
+FnPwr2 = lambda x: 2**x  #23. Power of Two
+FnICombinator = lambda x: x  #24. I Combinator
+
+FnCons = lambda x: lambda y: ConsCell(x,y)  #25. Cons (or Pair)
+FnCar = lambda x: x.car() if isinstance(x,ConsCell) else x(FnTrue)  #26. Car (First)
+FnCdr = lambda x: x.cdr() if isinstance(x,ConsCell) else x(FnFalse)  #27. Cdr (Tail)
+
+FnNil = lambda x: FnTrue  #28. Nil (Empty List)
+
+FnIsNil = lambda x: FnTrue if x==FnNil else FnFalse  #29. Is Nil (Is Empty List)
+FnIf0 = lambda x: FnTrue if x==0 else FnFalse  #37. Is 0
+
+
+
+def is_function(x):
+    return type(x) is type(FnAp)
+
+
+# def tokenize(line):
+#     tokens = []
+#     for token in line.split(' '):
+#         tokens.append(token)
+#     return tokens
+
+
+def translate(token):
+    try:
+        if isinstance(token, int):
             pass
-        tokens.append(token)
-    return tokens
+        elif token[0] in ':x':
+            token = ':' + token[1:]
+            # token = ('x', int(token[1:]))
+        elif token[0] in '-0123456789':
+            token = int(token)
+        elif token == 'galaxy':
+            token = ':galaxy'
+
+        elif token == 'inc':
+            token = FnInc
+        elif token == 'dec':
+            token = FnDec
+        elif token == 'add':
+            token = FnAdd
+        elif token == 'mul':
+            token = FnMul
+        elif token == 'div':
+            token = FnDiv
+        elif token == 't':
+            token = FnTrue
+        elif token == 'f':
+            token = FnFalse
+        elif token == 'eq':
+            token = FnEq
+        elif token == 'lt':
+            token = FnLt
+        elif token == 'mod':
+            token = FnMod
+        elif token == 'dem':
+            token = FnDem
+        elif token == 'neg':
+            token = FnNeg
+        # elif token == 'ap':
+        #     token = FnAp
+        elif token == 's':
+            token = FnSCombinator
+        elif token == 'c':
+            token = FnCCombinator
+        elif token == 'b':
+            token = FnBCombinator
+        elif token == 'pwr2':
+            token = FnPwr2
+        elif token == 'i':
+            token = FnICombinator
+        elif token == 'cons':
+            token = FnCons
+        elif token == 'car':
+            token = FnCar
+        elif token == 'cdr':
+            token = FnCdr
+        elif token == 'nil':
+            token = FnNil
+        elif token == 'isnil':
+            token = FnIsNil
+        elif token == 'if0':
+            token = FnIf0
+        else:
+            pass
+    except Exception:
+        pass
+    return token
 
 
-class VM :
+class VM:
     def __init__(self):
         self.reg = {}
 
@@ -80,12 +188,13 @@ class VM :
         with open(src, 'r') as fp:
             for row in fp:
                 row = row.rstrip()
-                # tokens = tokenize(row)
                 self.code.append(row)
                 # e = evaluate(tokens)
                 # print(e)
 
     def bind(self, reg, val):
+        if isinstance(reg, int):
+            reg = ':%d' % reg
         self.reg[reg] = val
         return val  # just for debug
 
@@ -93,135 +202,34 @@ class VM :
         self.reg[reg] = ('thunk', uneval)
         return uneval  # just for debug
 
-    # b, c, s が未実装
-    def apply(self, op, arg, verbose=False):
-        if isinstance(op, str):
-            if op == 'neg':
-                return -arg
-            elif op == 'inc':
-                return arg + 1
-            elif op == 'dec':
-                return arg - 1
-            elif op == 'pwr2':
-                return 2 ** arg
-
-            if op == 'nil':
-                return 't'  # for any arg
-            if op == 'isnil':
-                return 't' if arg == 'nil' else 'f'
-
-            if op == 'if0':
-                return 't' if arg == 0 else 'f'
-
-            if op == 'car':
-                if isinstance(arg, ConsCell):
-                    return arg.car()
-                else:
-                    return self.apply(arg, 't')  # ap car x2 = ap x2 t
-            elif op == 'cdr':
-                if isinstance(arg, ConsCell):
-                    return arg.cdr()
-                else:
-                    return self.apply(arg, 'f')  # ap cdr x2 = ap x2 f
-
-            if op == 'i':
-                if verbose: print('** I Combinator, 0=%s' % (arg,))
-                return arg
-
-            if op == 's' and arg == 't':
-                return 'f'
-
-            return (op, [arg])
-            # if op == 'cons':
-            #     return ('cons', arg)
-        elif isinstance(op, tuple):  # (op0, [args])
-            assert len(op) == 2 and isinstance(op[1], list)
-            op0 = op[0]
-            args = op[1] + [arg]
-            if len(args) == 2:
-                x, y = args
-                if op0 == 'cons':
-                    return ConsCell(x, y)
-                elif op0 == 'add':
-                    if type(x) is int and type(y) is int:
-                        return x + y
-                    else:
-                        if verbose: print('add %s %s; operands must be int' % (x, y))
-                        return 0
-                elif op0 == 'mul':
-                    if type(x) is int and type(y) is int:
-                        return x * y
-                    else:
-                        if verbose: print('mul %s %s; operands must be int' % (x, y))
-                        return 0
-                elif op0 == 'div':
-                    if type(x) is int and type(y) is int:
-                        pm = 1
-                        if x < 0:
-                            pm = -pm
-                            x = -x
-                        if y < 0:
-                            pm = -pm
-                            y = -y
-                        return (x // y) * pm
-                    else:
-                        if verbose: print('div %s %s; operands must be int' % (x, y))
-                        return 0
-                elif op0 == 'lt':
-                    if type(x) is int and type(y) is int:
-                        return 't' if x < y else 'f'
-                    else:
-                        if verbose: print('lt %s %s; operands must be int' % (x, y))
-                        return 'f'
-                elif op0 == 'eq':
-                    return 't' if x == y else 'f'
-                elif op0 == 't':  # K x y = x
-                    if verbose: print('** K Combinator, 0=%s | 1=%s' % (x, y))
-                    return x
-                elif op0 == 'f':  # f x y = y
-                    if verbose: print('** False., 0=%s | 1=%s' % (x, y))
-                    return y
-
-            if len(args) == 3:
-                x, y, z = args
-                if op0 == 's':  # S x y z = ((x z) (y z))
-                    if verbose: print('** S Combinator, 0=%s | 1=%s | 2=%s' % (x, y, z))
-                    return self.apply(self.apply(x,z), self.apply(y,z))
-                elif op0 == 'c':  # C x y z = x z y
-                    if verbose: print('** C Combinator, 0=%s | 1=%s | 2=%s' % (x, y, z))
-                    # return self.apply(self.apply(x,z), y)
-                    return self.apply((x, [z]), y)
-                elif op0 == 'b':  # B x y z = x (y z)
-                    if verbose: print('** B Combinator, 0=%s | 1=%s | 2=%s' % (x, y, z))
-                    return self.apply(x, self.apply(y, z))
-                elif op0 == 'if0':  # if0 x y z = (x == 0 ? y : z)
-                    return y if x == 0 else z
-
-            return (op0, args)
-        elif op is None:
-            if verbose: print('op is None')
-            return None
-        else:
-            if verbose: print('Unknown op; %s | %s' % (op, arg))
-            # return ('?', [op, arg])
-            return (op, [arg])
+    # def apply(self, op, arg, verbose=False):
+    #     if is_function(op):
+    #         return op(arg)
+    #     elif op is None:
+    #         if verbose: print('op is None')
+    #         return None
+    #     else:
+    #         if verbose: print('Unknown op; %s | %s' % (op, arg))
+    #         # return ('?', [op, arg])
+    #         return (op, [arg])
 
     def eval(self, tokens, ix=0, verbose=False):
         if ix == len(tokens):
             return (None, ix)
 
-        head = tokens[ix]
+        head = translate(tokens[ix])
+        if verbose: print('EVAL #%d %s...' % (ix, head))
         if is_reg(head):
             reg = head
             # reg_id = tokens[ix][1]
             if len(tokens)-ix >= 3 and tokens[ix+1] == '=':
                 # let reg = evaluated rest
-                # val, next = self.eval(tokens, ix+2, verbose=verbose)
-                # return (self.bind(reg, val), next)
-                self.define(reg, tokens[ix+2:])
-                return ('def<%s>' % reg, len(tokens))
+                val, next = self.eval(tokens, ix+2, verbose=verbose)
+                return (self.bind(reg, val), next)
+                # self.define(reg, tokens[ix+2:])
+                # return ('def<%s>' % reg, len(tokens))
             else:
-                val = self.reg.get(reg, 'undef<%s>' % reg)
+                val = self.reg.get(reg, FnNil)  #'undef<%s>' % reg)
                 if verbose: print('  reg<%s> =' % reg, val)
                 if isinstance(val, tuple) and val[0] == 'thunk':
                     # if verbose:
@@ -231,26 +239,60 @@ class VM :
                     val, _ = self.eval(val[1], 0, verbose=verbose)
                     self.reg[reg] = val
                 return (val, ix+1)
-        elif head == 'ap':
-            if verbose: print('  ap at ix=%d ...' % (ix,))# tokens[ix+1:]))
+        elif head == 'ap':  #is_function(head):
             op, next = self.eval(tokens, ix+1, verbose=verbose)
-            if verbose: print('    op=%s; next=%d ...' % (op, next))#, tokens[next:]))
             arg, next = self.eval(tokens, next, verbose=verbose)
-            if verbose: print('    arg=%s; next=%d ...' % (arg, next))#, tokens[next:]))
-            val = self.apply(op, arg, verbose=verbose)
-            if verbose: print('    apply %s %s -> val=%s' % (op, arg, val))
-            return (val, next)
+            if verbose: print('apply', op, arg)
+            return op(arg), next
         else:
             return (head, ix+1)
+
+    def eval__(self, tokens, verbose=False):
+        L = len(tokens)
+
+        val = FnICombinator
+
+        till = 0
+        for ix, head in enumerate(tokens):
+            if isinstance(head, int):
+                return head, ix+1
+            elif is_reg(head):
+                reg = head
+                # reg_id = tokens[ix][1]
+                if len(tokens)-ix >= 3 and tokens[ix+1] == '=':
+                    # let reg = evaluated rest
+                    # val, next = self.eval(tokens, ix+2, verbose=verbose)
+                    # return (self.bind(reg, val), next)
+                    self.define(reg, tokens[ix+2:])
+                    return ('def<%s>' % reg, len(tokens))
+                else:
+                    val = self.reg.get(reg, 'undef<%s>' % reg)
+                    if verbose: print('  reg<%s> =' % reg, val)
+                    if isinstance(val, tuple) and val[0] == 'thunk':
+                        # if verbose:
+                        # if verbose: print('  evaluate thunk<%s>=%s' % (reg, val[1]))
+                        print('[EVAL %s]' % reg)
+                        self.reg[reg] = 'rec<%s>' % reg
+                        val, _ = self.eval(val[1], 0, verbose=verbose)
+                        self.reg[reg] = val
+                    return (val, ix+1)
+            elif head == FnAp:  #is_function(head):
+                op, next = self.eval(tokens, ix+1, verbose=verbose)
+                return head(op), next
+            else:
+                return (head, ix+1)
 
     def run(self, verbose=False):
         for line_no, line in enumerate(self.code, start=1):
             print('LINE %d:' % line_no)
             print('   ', line)
-            tokens = tokenize(line)
-            if verbose: print('  =', tokens)
+            tokens = line.split(' ')
+            if verbose:
+                print('  =', tokens)
+                translated_tokens = [translate(token) for token in tokens]
+                print('  =', translated_tokens)
             try:
-                e, _ix = self.eval(tokens, 0, verbose=verbose)
+                e, _ix = self.eval(tokens, verbose=verbose)
                 print('  =', e)
             except Exception:
                 type, value, tb = sys.exc_info()
@@ -267,18 +309,20 @@ class VM :
 @click.command()
 @click.option('-s', '--src', type=click.Path(), default='galaxy.txt')
 @click.option('-e', '--eval', type=str, required=False)
-def main(src, eval):
+@click.option('-v', '--verbose', is_flag=True, default=False)
+def main(src, eval, verbose):
     sys.setrecursionlimit(20000)
 
     vm = VM()
     if eval:
-        tokens = tokenize(eval)
-        v, _ = vm.eval(tokens)
+        tokens = eval.split(' ')
+        if verbose: print(tokens)
+        v, _ = vm.eval(tokens, verbose=verbose)
         print(v)
     else:
         vm.load(src)
         vm.run()
-        v, _ = vm.eval([':galaxy'])
+        v, _ = vm.eval([':galaxy'], verbose=verbose)
         print('galaxy =', v)
 
 
